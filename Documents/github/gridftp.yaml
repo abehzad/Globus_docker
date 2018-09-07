@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    port: gridftp
+    svc: gridftp
+  name: gridftp
+spec:
+  hostNetwork: true
+  containers:
+  - command:
+    - /bin/bash
+    - -xec
+    - |
+      cat /etc/gridftpconf/gridftp.conf > /etc/gridftp.conf
+      IP=$(ip addr list eno1 | grep 'inet ' |cut -d' ' -f6|cut -d/ -f1)
+      echo data_interface $IP >> /etc/gridftp.conf
+      cp -a /etc/gridftpsec/hostkey.pem /etc/grid-security/hostkey.pem
+      cp -a /etc/gridftpsec/hostcert.pem /etc/grid-security/hostcert.pem
+      chmod 600 /etc/grid-security/host*.pem
+      export LCMAPS_DEBUG_LEVEL=5
+      export LCMAPS_LOG_FILE=/var/log/lcmaps
+      grep yourproject /etc/group || groupadd -f -g 1007 yourproject
+      grep yourproject /etc/passwd || useradd -g yourproject -u 1007 yourproject
+      rm -f /etc/grid-security/grid-mapfile
+      ln -s /etc/gridmap/grid-mapfile /etc/grid-security/grid-mapfile
+      exec bash -xe /etc/start.sh
+    env:
+    - name: SKIP_ENV
+      value: "true"
+    - name: START_WAIT_FILE
+      value: /etc/grid-security/certificates/.fetch_crl_inited
+    image: docker.io/pnnlhep/osg-gridftp-stable:2018-03-02
+    imagePullPolicy: IfNotPresent
+    name: main
+    ports:
+    - containerPort: 2811
+      name: gsiftp
+      protocol: TCP
+    volumeMounts:
+    - mountPath: /etc/grid-security/certificates
+      name: certs
+    - mountPath: /etc/gridftpsec
+      name: server
+    - mountPath: /etc/gridftpconf
+      name: config
+    - mountPath: /yourproject
+      name: data
+    - mountPath: /etc/gridmap
+      name: gridmap
+  volumes:
+  - hostPath:
+      path: /yourproject
+    name: data
+  - name: server
+    hostPath:
+      path: /gridftp/secret/
+  - name: config
+    hostPath:
+      path: /gridftp/config/
+  - hostPath:
+      path: /export-fetchcrl
+    name: certs
+  - hostPath:
+      path: /export-gridmap/
+    name: gridmap
+

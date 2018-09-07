@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: fetchcrl
+  name: fetchcrl
+  namespace: default
+spec:
+  hostNetwork: true
+  containers:
+  - image: pnnlhep/osg-fetch-crl-stable:2017-07-03
+    imagePullPolicy: IfNotPresent
+    name: fetchcrl
+    readinessProbe:
+      exec:
+        command:
+        - /bin/bash
+        - -c
+        - '[ -f /etc/grid-security/certificates/.fetch_crl_inited ]'
+      failureThreshold: 3
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    volumeMounts:
+    - mountPath: /etc/grid-security/certificates
+      name: certs
+  volumes:
+  - hostPath:
+      path: /export-fetchcrl
+    name: certs
+
